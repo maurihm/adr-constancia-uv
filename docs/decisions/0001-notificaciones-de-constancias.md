@@ -59,3 +59,12 @@ Después de almacenar una constancia, la aplicación registra únicamente una no
 ## More Information
 
 Propuesta inicial elaborada para el análisis arquitectónico del sistema ConstanciaUV empleando la plantilla MADR 4.0.0. Queda sujeta a revisión ante posibles cambios en las condiciones de integración con el proveedor externo de notificaciones.
+
+### Revisión 1. Cambio en el proveedor de notificaciones
+
+* **Cambio recibido:** El proveedor externo de notificaciones modificó su interfaz de comunicación y cambió el formato y estructura con los que reporta los errores de envío.
+* **Impacto sobre la alternativa seleccionada:** Gracias a la elección de la **Alternativa B (Procesamiento asíncrono mediante eventos persistidos)**, el impacto del cambio queda acotado y localizado exclusivamente en el componente procesador independiente (y su adaptador de comunicación con el proveedor externo). El flujo principal de validación (R1), generación y almacenamiento de constancias (R2, R3) y el registro inicial de eventos pendientes no sufren ninguna modificación. En contraste, si se hubiera elegido la Alternativa A, habría sido necesario modificar tanto el flujo de envío directo como el flujo de reintentos.
+* **Vigencia de la decisión:** La decisión original **se mantiene vigente** y su justificación se refuerza, dado que el desacoplamiento asíncrono demostró aislar al núcleo de ConstanciaUV frente a cambios externos del proveedor (RT1, RT2) y concentrar el manejo de errores en un solo punto.
+* **Consecuencia y comprobación que deben actualizarse:**
+  * *Riesgo / consecuencia a revisar:* Un cambio en la forma de reportar errores introduce el riesgo de que el procesador interprete erróneamente un fallo en la nueva interfaz: si un envío exitoso o un error definitivo se interpreta como fallo transitorio, podría reintentarse indefinidamente o generar envíos duplicados (comprometiendo RT4); por el contrario, si un fallo temporal no se detecta como error recuperable, la notificación podría descartarse sin reintentarse (comprometiendo RT3).
+  * *Comprobación actualizada:* Se agrega a las comprobaciones previstas una **prueba de contrato y manejo de errores sobre el adaptador del procesador**, simulando las nuevas respuestas de error del proveedor externo para verificar que el procesador clasifique correctamente los fallos recuperables (manteniendo el estado `PENDIENTE` para reintento conforme a RT3) y no emita solicitudes duplicadas para una misma constancia (`id_constancia`) cuando el proveedor reporte errores de comunicación ambiguos (RT4).
